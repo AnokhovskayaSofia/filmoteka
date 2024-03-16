@@ -50,6 +50,7 @@ func StartDB(cnf *config.Config) (*pg.DB, error) {
 
 func createManyToManyTables(db *pg.DB) error {
 	models := []interface{}{
+		(*User)(nil),
 		(*Film)(nil),
 		(*Actor)(nil),
 		(*FilmToActor)(nil),

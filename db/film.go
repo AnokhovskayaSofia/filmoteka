@@ -8,7 +8,7 @@ import (
 
 type Film struct {
 	ID          int       `json:"id"`
-	Name        string    `json:"name" pg:"unique" validate:"min=1,max=150"`
+	Name        string    `json:"name" validate:"min=1,max=150"`
 	Description string    `json:"description" validate:"max=1000"`
 	Date        time.Time `json:"date" validate:"datetime"`
 	Rate        int       `json:"rate" validate:"min=0,min=10"`

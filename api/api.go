@@ -2,8 +2,7 @@ package api
 
 import (
 	"encoding/json"
-	"fmt"
-	"log"
+	"errors"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -51,8 +50,33 @@ func StartAPI(pgdb *pg.DB) *chi.Mux {
 	return r
 }
 
+func checkBasicAuth(r *http.Request) (string, error) {
+	user, pass, ok := r.BasicAuth()
+	var err error
+	if !ok {
+		err := errors.New("failed to get username and password")
+		return "", err
+	}
+	pgdb, ok := r.Context().Value("DB").(*pg.DB)
+	user_role, err := db_models.GetUser(pgdb, user, pass)
+
+	return user_role, err
+}
+
 func getFilms(w http.ResponseWriter, r *http.Request) {
-	// sortBy is expected to look like field.orderdirection i. e. id.asc
+	_, err := checkBasicAuth(r)
+	if err != nil {
+		res := &api_models.FilmsResponse{
+			Success: false,
+			Error:   err.Error(),
+			Films:   nil,
+		}
+		slog.Error("error getting films %v\n", err)
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(res)
+		return
+	}
+
 	sortBy := r.URL.Query().Get("sortBy")
 	filter := r.URL.Query().Get("filter")
 	var splits []string
@@ -60,13 +84,10 @@ func getFilms(w http.ResponseWriter, r *http.Request) {
 		splits = strings.Split(filter, ".")
 	}
 	if sortBy == "" || sortBy == "rate" {
-		// rate ASC is the default sort query
 		sortBy = "rate DESC"
 	}
-	//get the db from context
+
 	pgdb, ok := r.Context().Value("DB").(*pg.DB)
-	//if we can't get the db let's handle the error
-	//and send an adequate response
 	if !ok {
 		res := &api_models.FilmsResponse{
 			Success: false,
@@ -74,15 +95,13 @@ func getFilms(w http.ResponseWriter, r *http.Request) {
 			Films:   nil,
 		}
 		err := json.NewEncoder(w).Encode(res)
-		//if there's an error with encoding handle it
 		if err != nil {
-			log.Printf("error sending response %v\n", err)
+			slog.Error("error sending response %v\n", err)
 		}
-		//return a bad request and exist the function
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	//call models package to access the database and return the comments
+
 	films, err := db_models.GetFilms(pgdb, sortBy, splits)
 	if err != nil {
 		res := &api_models.FilmsResponse{
@@ -90,24 +109,24 @@ func getFilms(w http.ResponseWriter, r *http.Request) {
 			Error:   err.Error(),
 			Films:   nil,
 		}
-		log.Printf("error getting films %v\n", err)
+		slog.Error("error getting films %v\n", err)
 		err := json.NewEncoder(w).Encode(res)
 		if err != nil {
-			log.Printf("error sending response %v\n", err)
+			slog.Error("error sending response %v\n", err)
 		}
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	//positive response
+
 	res := &api_models.FilmsResponse{
 		Success: true,
 		Error:   "",
 		Films:   films,
 	}
-	//encode the positive response to json and send it back
+
 	err = json.NewEncoder(w).Encode(res)
 	if err != nil {
-		log.Printf("error encoding films: %v\n", err)
+		slog.Error("error encoding films: %v\n", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -115,11 +134,25 @@ func getFilms(w http.ResponseWriter, r *http.Request) {
 }
 
 func createFilm(w http.ResponseWriter, r *http.Request) {
-	//get the request body and decode it
+	auth_role, err := checkBasicAuth(r)
+	if err != nil || auth_role != db_models.Admin {
+		if err == nil {
+			err = errors.New("wrong access level")
+		}
+		res := &api_models.FilmResponse{
+			Success: false,
+			Error:   err.Error(),
+			Film:    nil,
+		}
+		slog.Error("error creating film %v\n", err)
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(res)
+		return
+	}
+
 	req := &api_models.CreateFilmRequest{}
-	err := json.NewDecoder(r.Body).Decode(req)
-	//if there's an error with decoding the information
-	//send a response with an error
+	err = json.NewDecoder(r.Body).Decode(req)
+
 	if err != nil {
 		res := &api_models.FilmResponse{
 			Success: false,
@@ -127,18 +160,17 @@ func createFilm(w http.ResponseWriter, r *http.Request) {
 			Film:    nil,
 		}
 		err = json.NewEncoder(w).Encode(res)
-		//if there's an error with encoding handle it
+
 		if err != nil {
-			log.Printf("error sending response %v\n", err)
+			slog.Error("error sending response %v\n", err)
 		}
-		//return a bad request and exist the function
+
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	//get the db from context
+
 	pgdb, ok := r.Context().Value("DB").(*pg.DB)
-	//if we can't get the db let's handle the error
-	//and send an adequate response
+
 	if !ok {
 		res := &api_models.FilmResponse{
 			Success: false,
@@ -146,18 +178,18 @@ func createFilm(w http.ResponseWriter, r *http.Request) {
 			Film:    nil,
 		}
 		err := json.NewEncoder(w).Encode(res)
-		//if there's an error with encoding handle it
+
 		if err != nil {
-			log.Printf("error sending response %v\n", err)
+			slog.Error("error sending response %v\n", err)
 		}
-		//return a bad request and exist the function
+
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	//if we can get the db then
+
 	datetime, err := time.Parse("2006-01-02", req.Date)
 	if err != nil {
-		fmt.Println("Got datetime ", datetime)
+		slog.Error("failed to parse date %v\n", err)
 	}
 	film, err := db_models.CreateFilm(pgdb, &db_models.Film{
 		Name:        req.Name,
@@ -172,16 +204,15 @@ func createFilm(w http.ResponseWriter, r *http.Request) {
 			Film:    nil,
 		}
 		err = json.NewEncoder(w).Encode(res)
-		//if there's an error with encoding handle it
+
 		if err != nil {
-			log.Printf("error sending response %v\n", err)
+			slog.Error("error sending response %v\n", err)
 		}
-		//return a bad request and exist the function
+
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	//everything is good
-	//let's return a positive response
+
 	res := &api_models.FilmResponse{
 		Success: true,
 		Error:   "",
@@ -189,7 +220,7 @@ func createFilm(w http.ResponseWriter, r *http.Request) {
 	}
 	err = json.NewEncoder(w).Encode(res)
 	if err != nil {
-		log.Printf("error encoding after creating comment %v\n", err)
+		slog.Error("error encoding after creating film %v\n", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -197,10 +228,24 @@ func createFilm(w http.ResponseWriter, r *http.Request) {
 }
 
 func updateFilm(w http.ResponseWriter, r *http.Request) {
-	//get the data from the request
+	auth_role, err := checkBasicAuth(r)
+	if err != nil || auth_role != db_models.Admin {
+		if err == nil {
+			err = errors.New("wrong access level")
+		}
+		res := &api_models.FilmResponse{
+			Success: false,
+			Error:   err.Error(),
+			Film:    nil,
+		}
+		slog.Error("error updating film %v\n", err)
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(res)
+		return
+	}
+
 	req := &api_models.UpdateFilmRequest{}
-	//decode the data
-	err := json.NewDecoder(r.Body).Decode(req)
+	err = json.NewDecoder(r.Body).Decode(req)
 	if err != nil {
 		res := &api_models.FilmResponse{
 			Success: false,
@@ -208,11 +253,11 @@ func updateFilm(w http.ResponseWriter, r *http.Request) {
 			Film:    nil,
 		}
 		err = json.NewEncoder(w).Encode(res)
-		//if there's an error with encoding handle it
+
 		if err != nil {
-			log.Printf("error sending response %v\n", err)
+			slog.Error("error sending response %v\n", err)
 		}
-		//return a bad request and exist the function
+
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -224,17 +269,17 @@ func updateFilm(w http.ResponseWriter, r *http.Request) {
 			Film:    nil,
 		}
 		err := json.NewEncoder(w).Encode(res)
-		//if there's an error with encoding handle it
+
 		if err != nil {
-			log.Printf("error sending response %v\n", err)
+			slog.Error("error sending response %v\n", err)
 		}
-		//return a bad request and exist the function
+
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	//get the commentID to know what comment to modify
+
 	filmID := chi.URLParam(r, "filmID")
-	//we get a string but we need to send an int so we convert it
+
 	intFilmID, err := strconv.Atoi(filmID)
 	datetime, err := time.Parse("2006-01-02", req.Date)
 	if err != nil {
@@ -244,15 +289,12 @@ func updateFilm(w http.ResponseWriter, r *http.Request) {
 			Film:    nil,
 		}
 		err = json.NewEncoder(w).Encode(res)
-		//if there's an error with encoding handle it
+
 		if err != nil {
-			log.Printf("error sending response %v\n", err)
+			slog.Error("error sending response %v\n", err)
 		}
-		//return a bad request and exist the function
-		// w.WriteHeader(http.StatusBadRequest)
 	}
 
-	//update the comment
 	film, err := db_models.UpdateFilm(pgdb, &db_models.Film{
 		ID:          intFilmID,
 		Name:        req.Name,
@@ -267,34 +309,35 @@ func updateFilm(w http.ResponseWriter, r *http.Request) {
 			Film:    nil,
 		}
 		err = json.NewEncoder(w).Encode(res)
-		//if there's an error with encoding handle it
+
 		if err != nil {
-			log.Printf("error sending response %v\n", err)
+			slog.Error("error sending response %v\n", err)
 		}
-		//return a bad request and exist the function
+
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	//return successful response
-	res := &api_models.FilmResponse{
-		Success: true,
-		Error:   "",
-		Film:    film,
-	}
-	//send the encoded response to responsewriter
-	err = json.NewEncoder(w).Encode(res)
+
+	err = json.NewEncoder(w).Encode(film)
 	if err != nil {
-		log.Printf("error encoding comments: %v\n", err)
+		slog.Error("error encoding film: %v\n", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	//send a 200 response
+
 	w.WriteHeader(http.StatusOK)
 }
 
 func deleteFilm(w http.ResponseWriter, r *http.Request) {
-
-	//get the db from ctx
+	auth_role, err := checkBasicAuth(r)
+	if err != nil || auth_role != db_models.Admin {
+		if err == nil {
+			err = errors.New("wrong access level")
+		}
+		slog.Error("error deleting film %v\n", err)
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
 	pgdb, ok := r.Context().Value("DB").(*pg.DB)
 	if !ok {
 		res := &api_models.FilmResponse{
@@ -303,16 +346,15 @@ func deleteFilm(w http.ResponseWriter, r *http.Request) {
 			Film:    nil,
 		}
 		err := json.NewEncoder(w).Encode(res)
-		//if there's an error with encoding handle it
+
 		if err != nil {
-			log.Printf("error sending response %v\n", err)
+			slog.Error("error sending response %v\n", err)
 		}
-		//return a bad request and exist the function
+
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	//get the commentID
 	filmID := chi.URLParam(r, "filmID")
 	intFilmID, err := strconv.ParseInt(filmID, 10, 64)
 	if err != nil {
@@ -322,16 +364,15 @@ func deleteFilm(w http.ResponseWriter, r *http.Request) {
 			Film:    nil,
 		}
 		err = json.NewEncoder(w).Encode(res)
-		//if there's an error with encoding handle it
+
 		if err != nil {
-			log.Printf("error sending response %v\n", err)
+			slog.Error("error sending response %v\n", err)
 		}
-		//return a bad request and exist the function
+
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	//delete comment
 	err = db_models.DeleteFilm(pgdb, intFilmID)
 	if err != nil {
 		res := &api_models.FilmResponse{
@@ -340,24 +381,34 @@ func deleteFilm(w http.ResponseWriter, r *http.Request) {
 			Film:    nil,
 		}
 		err = json.NewEncoder(w).Encode(res)
-		//if there's an error with encoding handle it
+
 		if err != nil {
-			log.Printf("error sending response %v\n", err)
+			slog.Error("error sending response %v\n", err)
 		}
-		//return a bad request and exist the function
+
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	//send a 200 response
 	w.WriteHeader(http.StatusOK)
 }
 
 func getActors(w http.ResponseWriter, r *http.Request) {
-	//get the db from context
+	_, err := checkBasicAuth(r)
+	if err != nil {
+		res := &api_models.ActorsResponse{
+			Success: false,
+			Error:   err.Error(),
+			Actors:  nil,
+		}
+		slog.Error("error getting actors %v\n", err)
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(res)
+		return
+	}
+
 	pgdb, ok := r.Context().Value("DB").(*pg.DB)
-	//if we can't get the db let's handle the error
-	//and send an adequate response
+
 	if !ok {
 		res := &api_models.ActorsResponse{
 			Success: false,
@@ -365,15 +416,15 @@ func getActors(w http.ResponseWriter, r *http.Request) {
 			Actors:  nil,
 		}
 		err := json.NewEncoder(w).Encode(res)
-		//if there's an error with encoding handle it
+
 		if err != nil {
-			log.Printf("error sending response %v\n", err)
+			slog.Error("error sending response %v\n", err)
 		}
-		//return a bad request and exist the function
+
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	//call models package to access the database and return the comments
+
 	actors, err := db_models.GetActors(pgdb)
 	if err != nil {
 		res := &api_models.ActorsResponse{
@@ -381,24 +432,24 @@ func getActors(w http.ResponseWriter, r *http.Request) {
 			Error:   err.Error(),
 			Actors:  nil,
 		}
-		log.Printf("error getting actors %v\n", err)
+		slog.Error("error getting actors %v\n", err)
 		err := json.NewEncoder(w).Encode(res)
 		if err != nil {
-			log.Printf("error sending response %v\n", err)
+			slog.Error("error sending response %v\n", err)
 		}
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	//positive response
+
 	res := &api_models.ActorsResponse{
 		Success: true,
 		Error:   "",
 		Actors:  actors,
 	}
-	//encode the positive response to json and send it back
+
 	err = json.NewEncoder(w).Encode(res)
 	if err != nil {
-		log.Printf("error encoding actors: %v\n", err)
+		slog.Error("error encoding actors: %v\n", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -406,11 +457,26 @@ func getActors(w http.ResponseWriter, r *http.Request) {
 }
 
 func createActor(w http.ResponseWriter, r *http.Request) {
-	//get the request body and decode it
+	auth_role, err := checkBasicAuth(r)
+	if err != nil || auth_role != db_models.Admin {
+		if err == nil {
+			err = errors.New("wrong access level")
+		}
+		res := &api_models.ActorResponse{
+			Success: false,
+			Error:   err.Error(),
+			Actor:   nil,
+		}
+		slog.Error("error getting actor %v\n", err)
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(res)
+		return
+	}
 	req := &api_models.CreateActorRequest{}
-	err := json.NewDecoder(r.Body).Decode(req)
-	//if there's an error with decoding the information
-	//send a response with an error
+	err = json.NewDecoder(r.Body).Decode(req)
+	user, password, _ := r.BasicAuth()
+	slog.Info("Request", user, password)
+
 	if err != nil {
 		res := &api_models.ActorResponse{
 			Success: false,
@@ -418,18 +484,17 @@ func createActor(w http.ResponseWriter, r *http.Request) {
 			Actor:   nil,
 		}
 		err = json.NewEncoder(w).Encode(res)
-		//if there's an error with encoding handle it
+
 		if err != nil {
-			log.Printf("error sending response %v\n", err)
+			slog.Error("error sending response %v\n", err)
 		}
-		//return a bad request and exist the function
+
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	//get the db from context
+
 	pgdb, ok := r.Context().Value("DB").(*pg.DB)
-	//if we can't get the db let's handle the error
-	//and send an adequate response
+
 	if !ok {
 		res := &api_models.ActorResponse{
 			Success: false,
@@ -437,18 +502,18 @@ func createActor(w http.ResponseWriter, r *http.Request) {
 			Actor:   nil,
 		}
 		err := json.NewEncoder(w).Encode(res)
-		//if there's an error with encoding handle it
+
 		if err != nil {
-			log.Printf("error sending response %v\n", err)
+			slog.Error("error sending response %v\n", err)
 		}
-		//return a bad request and exist the function
+
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	//if we can get the db then
+
 	birthday, err := time.Parse("2006-01-02", req.Birth)
 	if err != nil {
-		fmt.Println("Got datetime ", birthday)
+		slog.Error("failed to parse date %v\n", err)
 	}
 	actor, err := db_models.CreateActor(pgdb, &db_models.Actor{
 		Name:  req.Name,
@@ -462,16 +527,15 @@ func createActor(w http.ResponseWriter, r *http.Request) {
 			Actor:   nil,
 		}
 		err = json.NewEncoder(w).Encode(res)
-		//if there's an error with encoding handle it
+
 		if err != nil {
-			log.Printf("error sending response %v\n", err)
+			slog.Error("error sending response %v\n", err)
 		}
-		//return a bad request and exist the function
+
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	//everything is good
-	//let's return a positive response
+
 	res := &api_models.ActorResponse{
 		Success: true,
 		Error:   "",
@@ -479,7 +543,7 @@ func createActor(w http.ResponseWriter, r *http.Request) {
 	}
 	err = json.NewEncoder(w).Encode(res)
 	if err != nil {
-		log.Printf("error encoding after creating comment %v\n", err)
+		slog.Error("error encoding after creating actor %v\n", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -487,10 +551,24 @@ func createActor(w http.ResponseWriter, r *http.Request) {
 }
 
 func updateActor(w http.ResponseWriter, r *http.Request) {
-	//get the data from the request
+	auth_role, err := checkBasicAuth(r)
+	if err != nil || auth_role != db_models.Admin {
+		if err == nil {
+			err = errors.New("wrong access level")
+		}
+		res := &api_models.ActorResponse{
+			Success: false,
+			Error:   err.Error(),
+			Actor:   nil,
+		}
+		slog.Error("error getting actor %v\n", err)
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(res)
+		return
+	}
 	req := &api_models.UpdateActorRequest{}
-	//decode the data
-	err := json.NewDecoder(r.Body).Decode(req)
+
+	err = json.NewDecoder(r.Body).Decode(req)
 	if err != nil {
 		res := &api_models.ActorResponse{
 			Success: false,
@@ -498,11 +576,11 @@ func updateActor(w http.ResponseWriter, r *http.Request) {
 			Actor:   nil,
 		}
 		err = json.NewEncoder(w).Encode(res)
-		//if there's an error with encoding handle it
+
 		if err != nil {
-			log.Printf("error sending response %v\n", err)
+			slog.Error("error sending response %v\n", err)
 		}
-		//return a bad request and exist the function
+
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -514,21 +592,20 @@ func updateActor(w http.ResponseWriter, r *http.Request) {
 			Actor:   nil,
 		}
 		err := json.NewEncoder(w).Encode(res)
-		//if there's an error with encoding handle it
+
 		if err != nil {
-			log.Printf("error sending response %v\n", err)
+			slog.Error("error sending response %v\n", err)
 		}
-		//return a bad request and exist the function
+
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	//get the commentID to know what comment to modify
+
 	actorID := chi.URLParam(r, "actorID")
-	//we get a string but we need to send an int so we convert it
+
 	intActorID, err := strconv.ParseInt(actorID, 10, 64)
 	datetime, err := time.Parse("2006-01-02", req.Birth)
 
-	//update the comment
 	actor, err := db_models.UpdateActor(pgdb, &db_models.Actor{
 		ID:    intActorID,
 		Name:  req.Name,
@@ -542,34 +619,47 @@ func updateActor(w http.ResponseWriter, r *http.Request) {
 			Actor:   nil,
 		}
 		err = json.NewEncoder(w).Encode(res)
-		//if there's an error with encoding handle it
+
 		if err != nil {
-			log.Printf("error sending response %v\n", err)
+			slog.Error("error sending response %v\n", err)
 		}
-		//return a bad request and exist the function
+
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	//return successful response
+
 	res := &api_models.ActorResponse{
 		Success: true,
 		Error:   "",
 		Actor:   actor,
 	}
-	//send the encoded response to responsewriter
+
 	err = json.NewEncoder(w).Encode(res)
 	if err != nil {
-		log.Printf("error encoding comments: %v\n", err)
+		slog.Error("error encoding actor: %v\n", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	//send a 200 response
+
 	w.WriteHeader(http.StatusOK)
 }
 
 func deleteActor(w http.ResponseWriter, r *http.Request) {
-
-	//get the db from ctx
+	auth_role, err := checkBasicAuth(r)
+	if err != nil || auth_role != db_models.Admin {
+		if err == nil {
+			err = errors.New("wrong access level")
+		}
+		res := &api_models.ActorResponse{
+			Success: false,
+			Error:   err.Error(),
+			Actor:   nil,
+		}
+		slog.Error("error getting actor %v\n", err)
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(res)
+		return
+	}
 	pgdb, ok := r.Context().Value("DB").(*pg.DB)
 	if !ok {
 		res := &api_models.ActorResponse{
@@ -578,16 +668,15 @@ func deleteActor(w http.ResponseWriter, r *http.Request) {
 			Actor:   nil,
 		}
 		err := json.NewEncoder(w).Encode(res)
-		//if there's an error with encoding handle it
+
 		if err != nil {
-			log.Printf("error sending response %v\n", err)
+			slog.Error("error sending response %v\n", err)
 		}
-		//return a bad request and exist the function
+
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	//get the commentID
 	actorID := chi.URLParam(r, "actorID")
 	intActorID, err := strconv.ParseInt(actorID, 10, 64)
 	if err != nil {
@@ -597,16 +686,15 @@ func deleteActor(w http.ResponseWriter, r *http.Request) {
 			Actor:   nil,
 		}
 		err = json.NewEncoder(w).Encode(res)
-		//if there's an error with encoding handle it
+
 		if err != nil {
-			log.Printf("error sending response %v\n", err)
+			slog.Error("error sending response %v\n", err)
 		}
-		//return a bad request and exist the function
+
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	//delete comment
 	err = db_models.DeleteActor(pgdb, intActorID)
 	if err != nil {
 		res := &api_models.ActorResponse{
@@ -615,15 +703,14 @@ func deleteActor(w http.ResponseWriter, r *http.Request) {
 			Actor:   nil,
 		}
 		err = json.NewEncoder(w).Encode(res)
-		//if there's an error with encoding handle it
+
 		if err != nil {
-			log.Printf("error sending response %v\n", err)
+			slog.Error("error sending response %v\n", err)
 		}
-		//return a bad request and exist the function
+
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	//send a 200 response
 	w.WriteHeader(http.StatusOK)
 }
