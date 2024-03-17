@@ -1,0 +1,410 @@
+basePath: /
+definitions:
+  api.ErrorResponse:
+    properties:
+      error:
+        example: Error msg
+        type: string
+      success:
+        example: false
+        type: boolean
+    type: object
+  api_models.ActorResponse:
+    properties:
+      actor:
+        $ref: '#/definitions/filmoteka_db.Actor'
+      error:
+        type: string
+      success:
+        type: boolean
+    type: object
+  api_models.ActorsResponse:
+    properties:
+      actors:
+        items:
+          $ref: '#/definitions/filmoteka_db.Actor'
+        type: array
+      error:
+        type: string
+      success:
+        type: boolean
+    type: object
+  api_models.FilmResponse:
+    properties:
+      error:
+        type: string
+      film:
+        $ref: '#/definitions/filmoteka_db.Film'
+      success:
+        type: boolean
+    type: object
+  api_models.FilmsResponse:
+    properties:
+      error:
+        type: string
+      film:
+        items:
+          $ref: '#/definitions/filmoteka_db.Film'
+        type: array
+      success:
+        type: boolean
+    type: object
+  db.Actor:
+    properties:
+      birthday:
+        type: string
+      films:
+        items:
+          $ref: '#/definitions/db.Film'
+        type: array
+      id:
+        type: integer
+      name:
+        type: string
+      sex:
+        enum:
+        - male
+        - female
+        type: string
+    type: object
+  db.Film:
+    properties:
+      actors:
+        items:
+          $ref: '#/definitions/db.Actor'
+        type: array
+      date:
+        type: string
+      description:
+        maxLength: 1000
+        type: string
+      id:
+        type: integer
+      name:
+        maxLength: 150
+        minLength: 1
+        type: string
+      rate:
+        maximum: 10
+        minimum: 0
+        type: integer
+    type: object
+  filmoteka_db.Actor:
+    properties:
+      birthday:
+        type: string
+      films:
+        items:
+          $ref: '#/definitions/db.Film'
+        type: array
+      id:
+        type: integer
+      name:
+        type: string
+      sex:
+        enum:
+        - male
+        - female
+        type: string
+    type: object
+  filmoteka_db.Film:
+    properties:
+      actors:
+        items:
+          $ref: '#/definitions/db.Actor'
+        type: array
+      date:
+        type: string
+      description:
+        maxLength: 1000
+        type: string
+      id:
+        type: integer
+      name:
+        maxLength: 150
+        minLength: 1
+        type: string
+      rate:
+        maximum: 10
+        minimum: 0
+        type: integer
+    type: object
+host: localhost:8084
+info:
+  contact:
+    email: support@swagger.io
+    name: API Support
+    url: http://www.swagger.io/support
+  description: This is a sample Filmoteka server.
+  termsOfService: http://swagger.io/terms/
+  title: Filmoteka API
+  version: "1.0"
+paths:
+  /actors:
+    delete:
+      consumes:
+      - application/json
+      description: Availible only for admin user, deleting actor using id from request
+        params
+      parameters:
+      - description: Actors Id
+        in: query
+        name: actorID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: Delete actor
+      tags:
+      - actors
+    get:
+      consumes:
+      - application/json
+      description: Availible only for authenticated user, getting actors list from
+        db
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api_models.ActorsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: List actors
+      tags:
+      - actors
+    post:
+      consumes:
+      - application/json
+      description: Availible only for admin user, creating actor using data from request
+        body and return new actor
+      parameters:
+      - description: actor info
+        in: body
+        name: Actor
+        required: true
+        schema:
+          $ref: '#/definitions/db.Actor'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api_models.ActorResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: Create actor
+      tags:
+      - actors
+    put:
+      consumes:
+      - application/json
+      description: Availible only for admin user, updating actor using id from request
+        params and return actor
+      parameters:
+      - description: Actors Id
+        in: query
+        name: actorID
+        required: true
+        type: string
+      - description: actor info
+        in: body
+        name: Actor
+        required: true
+        schema:
+          $ref: '#/definitions/db.Actor'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api_models.ActorResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: Update actor
+      tags:
+      - actors
+  /films:
+    delete:
+      consumes:
+      - application/json
+      description: Availible only for admin user, deleting film by id from params
+      parameters:
+      - description: Film Id
+        in: query
+        name: filmID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: Delete film
+      tags:
+      - films
+    get:
+      consumes:
+      - application/json
+      description: Availible only for authenticated user, getting films list, they
+        can be sorted by fields, default is rate. Also you can use filters in field.value
+        template.
+      parameters:
+      - description: Sort by field, default rate
+        example: name
+        in: query
+        name: sortBy
+        type: string
+      - description: Filter by field (field.value), can be user all except actors
+        example: name.Name1
+        in: query
+        name: filter
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api_models.FilmsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: Get films list
+      tags:
+      - films
+    post:
+      consumes:
+      - application/json
+      description: Availible only for admin user, creating film using data from request
+        body and return new film
+      parameters:
+      - description: film info
+        in: body
+        name: Film
+        required: true
+        schema:
+          $ref: '#/definitions/db.Film'
+      - description: Film Id
+        in: query
+        name: filmID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api_models.FilmResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: Create film
+      tags:
+      - films
+    put:
+      consumes:
+      - application/json
+      description: Availible only for admin user, updating film using data from request
+        body and return new film
+      parameters:
+      - description: film info
+        in: body
+        name: Film
+        required: true
+        schema:
+          $ref: '#/definitions/db.Film'
+      - description: Film Id
+        in: query
+        name: filmID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api_models.FilmResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: Update film
+      tags:
+      - films
+securityDefinitions:
+  BasicAuth:
+    type: basic
+swagger: "2.0"
