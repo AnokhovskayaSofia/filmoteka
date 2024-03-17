@@ -18,7 +18,7 @@ import (
 //	@contact.url	http://www.swagger.io/support
 //	@contact.email	support@swagger.io
 
-// @host		localhost:8084
+// @host		cfg.HTTPServer.Address
 // @BasePath /
 
 // @securityDefinitions.basic BasicAuth
@@ -36,9 +36,9 @@ func main() {
 		log.Error("error starting the database %v", err)
 	}
 
-	router := api.StartAPI(pgdb)
+	router := api.StartAPI(pgdb, cfg)
 
-	err = http.ListenAndServe(":8084", router)
+	err = http.ListenAndServe(cfg.HTTPServer.Address, router)
 	if err != nil {
 		log.Error("error from router %v\n", err)
 	}

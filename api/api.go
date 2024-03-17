@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 
+	"filmoteka/config"
 	"filmoteka/db"
 
 	httpSwagger "github.com/swaggo/http-swagger"
@@ -13,33 +14,19 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-pg/pg/v10"
 	_ "github.com/swaggo/http-swagger/example/go-chi/docs"
-	// swaggerFiles "github.com/swaggo/files"
+
 	"github.com/go-playground/validator/v10"
 )
 
 var Validate *validator.Validate = validator.New()
 
-//	@title			Filmoteka API
-//	@version		1.0
-//	@description	This is a sample Filmoteka server.
-//	@termsOfService	http://swagger.io/terms/
-
-//	@contact.name	API Support
-//	@contact.url	http://www.swagger.io/support
-//	@contact.email	support@swagger.io
-
-// @host		localhost:8084
-// @BasePath /
-// @securityDefinitions.basic BasicAuth
-// @scope.admin Grants read and write access
-// @in header
-func StartAPI(pgdb *pg.DB) *chi.Mux {
+func StartAPI(pgdb *pg.DB, cfg *config.Config) *chi.Mux {
 	r := chi.NewRouter()
 
 	r.Use(middleware.Logger, middleware.RequestID, middleware.Recoverer, middleware.WithValue("DB", pgdb))
 	// r.Mount("/swagger", httpSwagger.WrapHandler)
 	r.Get("/swagger/*", httpSwagger.Handler(
-		httpSwagger.URL("http://localhost:8084/swagger/doc.json"), //The url pointing to API definition
+		httpSwagger.URL(cfg.HTTPServer.Address+"/swagger/doc.json"), //The url pointing to API definition
 	))
 
 	r.Route("/films", func(r chi.Router) {
