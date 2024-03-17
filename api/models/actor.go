@@ -4,14 +4,14 @@ import db_models "filmoteka/db"
 
 type ActorsResponse struct {
 	Success bool               `json:"success"`
-	Error   string             `json:"error"`
-	Actors  []*db_models.Actor `json:"actors"`
+	Error   string             `json:"error,omitempty"`
+	Actors  []*db_models.Actor `json:"actors,omitempty"`
 }
 
 type ActorResponse struct {
 	Success bool             `json:"success"`
-	Error   string           `json:"error"`
-	Actor   *db_models.Actor `json:"actor"`
+	Error   string           `json:"error,omitempty"`
+	Actor   *db_models.Actor `json:"actor,omitempty"`
 }
 
 type CreateActorRequest struct {
@@ -22,6 +22,6 @@ type CreateActorRequest struct {
 
 type UpdateActorRequest struct {
 	Name  string `json:"name,omitempty"`
-	Sex   string `json:"sex,omitempty"`
+	Sex   string `json:"sex,omitempty" validate:"oneof=male female"`
 	Birth string `json:"birth,omitempty"`
 }
