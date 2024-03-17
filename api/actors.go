@@ -9,29 +9,27 @@ import (
 	"net/http"
 	"strconv"
 	"time"
-	"github.com/go-playground/validator/v10"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-pg/pg/v10"
 )
 
-var validate *validator.Validate = validator.New()
-
 // getActors godoc
 // @Summary      List actors
-// @Description  get actors list from db
+// @Description  Availible only for authenticated user, getting actors list from db
 // @Tags         actors
 // @Accept       json
 // @Produce      json
 // @Router       /actors [get]
 // @Security BasicAuth
 // @Success 200 {object} api_models.ActorsResponse
-// @Failure 401 {object}  api_models.ActorsResponse
+// @Failure 401 {object}  ErrorResponse
+// @Failure 400 {object} ErrorResponse
 func getActors(w http.ResponseWriter, r *http.Request) {
 	_, err := checkBasicAuth(r)
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
-		HandleActorError(w, err)
+		HandleError(w, err)
 		return
 	}
 
@@ -39,14 +37,14 @@ func getActors(w http.ResponseWriter, r *http.Request) {
 
 	if !ok {
 		w.WriteHeader(http.StatusBadRequest)
-		HandleActorsError(w, err)
+		HandleError(w, err)
 		return
 	}
 
 	actors, err := db.GetActors(pgdb)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		HandleActorsError(w, err)
+		HandleError(w, err)
 		return
 	}
 
@@ -59,7 +57,7 @@ func getActors(w http.ResponseWriter, r *http.Request) {
 	err = json.NewEncoder(w).Encode(res)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		HandleActorsError(w, err)
+		HandleError(w, err)
 		return
 	}
 	w.WriteHeader(http.StatusOK)
@@ -67,7 +65,7 @@ func getActors(w http.ResponseWriter, r *http.Request) {
 
 // createActor godoc
 // @Summary      Create actor
-// @Description  create actor using data from request body and return new actor
+// @Description  Availible only for admin user, creating actor using data from request body and return new actor
 // @Tags         actors
 // @Accept       json
 // @Produce      json
@@ -75,7 +73,8 @@ func getActors(w http.ResponseWriter, r *http.Request) {
 // @Param Actor body db.Actor true "actor info"
 // @Security BasicAuth
 // @Success 200 {object} api_models.ActorResponse
-// @Failure 401 {object}  api_models.ActorResponse
+// @Failure 401 {object}  ErrorResponse
+// @Failure 400 {object} ErrorResponse
 func createActor(w http.ResponseWriter, r *http.Request) {
 	auth_role, err := checkBasicAuth(r)
 	if err != nil || auth_role != db.Admin {
@@ -83,22 +82,22 @@ func createActor(w http.ResponseWriter, r *http.Request) {
 			err = errors.New("wrong access level")
 		}
 		w.WriteHeader(http.StatusUnauthorized)
-		HandleActorError(w, err)
+		HandleError(w, err)
 		return
 	}
 	req := &api_models.CreateActorRequest{}
-	
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		HandleActorError(w, err)
-		return
-	}
-	err = json.NewDecoder(r.Body).Decode(req)
-	err = validate.Struct(req)
 
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		HandleActorError(w, err)
+		HandleError(w, err)
+		return
+	}
+	err = json.NewDecoder(r.Body).Decode(req)
+	err = Validate.Struct(req)
+
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		HandleError(w, err)
 		return
 	}
 
@@ -106,14 +105,14 @@ func createActor(w http.ResponseWriter, r *http.Request) {
 
 	if !ok {
 		w.WriteHeader(http.StatusBadRequest)
-		HandleActorError(w, errors.New("could not get the DB from context"))
+		HandleError(w, errors.New("could not get the DB from context"))
 		return
 	}
 
 	birthday, err := time.Parse("2006-01-02", req.Birth)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		HandleActorError(w, err)
+		HandleError(w, err)
 		return
 	}
 	actor, err := db.CreateActor(pgdb, &db.Actor{
@@ -123,7 +122,7 @@ func createActor(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		HandleActorError(w, err)
+		HandleError(w, err)
 		return
 	}
 
@@ -136,7 +135,7 @@ func createActor(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		slog.Error("error encoding after creating actor %s\n", err)
 		w.WriteHeader(http.StatusBadRequest)
-		HandleActorError(w, err)
+		HandleError(w, err)
 		return
 	}
 	w.WriteHeader(http.StatusOK)
@@ -144,7 +143,7 @@ func createActor(w http.ResponseWriter, r *http.Request) {
 
 // updateActor godoc
 // @Summary      Update actor
-// @Description  update actor using id from request params and return actor
+// @Description  Availible only for admin user, updating actor using id from request params and return actor
 // @Tags         actors
 // @Accept       json
 // @Produce      json
@@ -153,7 +152,8 @@ func createActor(w http.ResponseWriter, r *http.Request) {
 // @Router       /actors [put]
 // @Security BasicAuth
 // @Success 200 {object} api_models.ActorResponse
-// @Failure 401 {object}  api_models.ActorResponse
+// @Failure 401 {object}  ErrorResponse
+// @Failure 400 {object} ErrorResponse
 func updateActor(w http.ResponseWriter, r *http.Request) {
 	auth_role, err := checkBasicAuth(r)
 	if err != nil || auth_role != db.Admin {
@@ -161,22 +161,22 @@ func updateActor(w http.ResponseWriter, r *http.Request) {
 			err = errors.New("wrong access level")
 		}
 		w.WriteHeader(http.StatusUnauthorized)
-		HandleActorError(w, err)
+		HandleError(w, err)
 		return
 	}
 	req := &api_models.UpdateActorRequest{}
 
 	err = json.NewDecoder(r.Body).Decode(req)
-	err = validate.Struct(req)
+	err = Validate.Struct(req)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		HandleActorError(w, err)
+		HandleError(w, err)
 		return
 	}
 	pgdb, ok := r.Context().Value("DB").(*pg.DB)
 	if !ok {
 		w.WriteHeader(http.StatusBadRequest)
-		HandleActorError(w, err)
+		HandleError(w, err)
 		return
 	}
 
@@ -185,13 +185,13 @@ func updateActor(w http.ResponseWriter, r *http.Request) {
 	intActorID, err := strconv.ParseInt(actorID, 10, 64)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		HandleActorError(w, err)
+		HandleError(w, err)
 		return
 	}
 	datetime, err := time.Parse("2006-01-02", req.Birth)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		HandleActorError(w, err)
+		HandleError(w, err)
 		return
 	}
 	actor, err := db.UpdateActor(pgdb, &db.Actor{
@@ -202,7 +202,7 @@ func updateActor(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		HandleActorError(w, err)
+		HandleError(w, err)
 		return
 	}
 
@@ -224,7 +224,7 @@ func updateActor(w http.ResponseWriter, r *http.Request) {
 
 // deleteActor godoc
 // @Summary      Delete actor
-// @Description  delete actor using id from request params
+// @Description  Availible only for admin user, deleting actor using id from request params
 // @Tags         actors
 // @Accept       json
 // @Produce      json
@@ -232,7 +232,8 @@ func updateActor(w http.ResponseWriter, r *http.Request) {
 // @Router       /actors [delete]
 // @Security BasicAuth
 // @Success 200 {object} nil
-// @Failure 401 {object} http.Response
+// @Failure 401 {object}  ErrorResponse
+// @Failure 400 {object} ErrorResponse
 func deleteActor(w http.ResponseWriter, r *http.Request) {
 	auth_role, err := checkBasicAuth(r)
 	if err != nil || auth_role != db.Admin {
@@ -240,13 +241,13 @@ func deleteActor(w http.ResponseWriter, r *http.Request) {
 			err = errors.New("wrong access level")
 		}
 		w.WriteHeader(http.StatusUnauthorized)
-		HandleActorError(w, err)
+		HandleError(w, err)
 		return
 	}
 	pgdb, ok := r.Context().Value("DB").(*pg.DB)
 	if !ok {
 		w.WriteHeader(http.StatusBadRequest)
-		HandleActorError(w, err)
+		HandleError(w, err)
 		return
 	}
 
@@ -254,19 +255,19 @@ func deleteActor(w http.ResponseWriter, r *http.Request) {
 	intActorID, err := strconv.ParseInt(actorID, 10, 64)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		HandleActorError(w, err)
+		HandleError(w, err)
 		return
 	}
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		HandleActorError(w, err)
+		HandleError(w, err)
 		return
 	}
 
 	err = db.DeleteActor(pgdb, intActorID)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		HandleActorError(w, err)
+		HandleError(w, err)
 		return
 	}
 

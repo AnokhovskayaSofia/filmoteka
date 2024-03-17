@@ -10,8 +10,8 @@ type Film struct {
 	ID          int       `json:"id"`
 	Name        string    `json:"name" validate:"min=1,max=150"`
 	Description string    `json:"description" validate:"max=1000"`
-	Date        time.Time `json:"date" validate:"datetime"`
-	Rate        int       `json:"rate" validate:"min=0,min=10"`
+	Date        time.Time `json:"date"`
+	Rate        int       `json:"rate" validate:"gte=0,lte=10"`
 	Actors      []Actor   `json:"actors" pg:"many2many:film_to_actors"`
 }
 
@@ -24,7 +24,9 @@ func GetFilms(db *pg.DB, sortBy string, filter []string) ([]*Film, error) {
 	films := make([]*Film, 0)
 	var err error
 	if cap(filter) > 0 {
-		err = db.Model(&films).Relation("Actors").Where("? = ?", pg.Ident(filter[0]), filter[1]).Order(sortBy).
+		err = db.Model(&films).Relation("Actors").Where("? like '%' || ? || '%'", pg.Ident(filter[0]), filter[1]).Order(sortBy).
+			Select()
+		err = db.Model(&films).Relation("Actors").Where("? like '%' || ? || '%'", pg.Ident(filter[0]), filter[1]).Order(sortBy).
 			Select()
 	} else {
 		err = db.Model(&films).Relation("Actors").Order(sortBy).

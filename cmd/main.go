@@ -9,6 +9,22 @@ import (
 	"net/http"
 )
 
+//	@title			Filmoteka API
+//	@version		1.0
+//	@description	This is a sample Filmoteka server.
+//	@termsOfService	http://swagger.io/terms/
+
+//	@contact.name	API Support
+//	@contact.url	http://www.swagger.io/support
+//	@contact.email	support@swagger.io
+
+// @host		localhost:8084
+// @BasePath /
+
+// @securityDefinitions.basic BasicAuth
+// @scope.admin Grants read and write access to administrative information
+// @in header
+// @name Authorization
 func main() {
 	cfg := config.CnfLoad()
 
@@ -22,7 +38,7 @@ func main() {
 
 	router := api.StartAPI(pgdb)
 
-	err = http.ListenAndServe(":8085", router)
+	err = http.ListenAndServe(":8084", router)
 	if err != nil {
 		log.Error("error from router %v\n", err)
 	}

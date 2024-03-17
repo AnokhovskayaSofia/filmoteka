@@ -2,31 +2,22 @@ package api
 
 import (
 	"encoding/json"
-	
-	api_models "filmoteka/api/models"
 
 	"log/slog"
 	"net/http"
 )
 
-func HandleActorsError(w http.ResponseWriter, err error)  {
-	res := &api_models.ActorsResponse{
-		Success: false,
-		Error:   err.Error(),
-		Actors:   nil,
-	}
-	slog.Error("error getting actor %s\n", err)
-	
-	json.NewEncoder(w).Encode(res)
+type ErrorResponse struct {
+	Success bool   `json:"success" example:"false"`
+	Error   string `json:"error" example:"Error msg"`
 }
 
-func HandleActorError(w http.ResponseWriter, err error)  {
-	res := &api_models.ActorResponse{
+func HandleError(w http.ResponseWriter, err error) {
+	res := &ErrorResponse{
 		Success: false,
 		Error:   err.Error(),
-		Actor:   nil,
 	}
-	slog.Error("error getting actor %s\n", err)
-	
+	slog.Error("error %s\n", err)
+
 	json.NewEncoder(w).Encode(res)
 }

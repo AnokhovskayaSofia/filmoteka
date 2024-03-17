@@ -14,7 +14,10 @@ import (
 	"github.com/go-pg/pg/v10"
 	_ "github.com/swaggo/http-swagger/example/go-chi/docs"
 	// swaggerFiles "github.com/swaggo/files"
+	"github.com/go-playground/validator/v10"
 )
+
+var Validate *validator.Validate = validator.New()
 
 //	@title			Filmoteka API
 //	@version		1.0
