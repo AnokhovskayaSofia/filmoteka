@@ -8,7 +8,7 @@
 - [Окружение](#окружение)
 - [ToDo](#todo)
 - [ТЗ](#тз)
-- [Важное](#важное)
+- [Тестирование](#тестирование)
 ---
 
 ## Описание
@@ -34,6 +34,24 @@
 
 ## ToDo
 * Сделать возможность поиска по полю **actors** ```GET /films```
+* Убрать из response json повторяющиеся поля для ex: запрос ```GET /films``` в ответе есть поле **actors** и у каждого элемента снова поле **films** *(films у actor надо убрать в данном случае)*
+
+## Тестирование
+* Все тесты находятся в папке ```/tests```
+
+* Что бы запустить тесты должн быть описан config файл в папке ```./tests/config```, а так же создана **db-test**
+
+<img src="images/test1.png" align="center" />
+<img src="images/test2.png" align="center" />
+
+### Запустить тесты:
+из папки ```./filmoteka/tests```
+
+```go test  -coverprofile=cover.out -coverpkg ../api```
+
+### Посмотреть % покрытия:
+
+```go tool cover -html=cover.out```
 
 ## ТЗ
 <img src="images/tz.png" align="center" />
