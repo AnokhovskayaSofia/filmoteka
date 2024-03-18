@@ -256,11 +256,6 @@ func deleteActor(w http.ResponseWriter, r *http.Request) {
 		HandleError(w, err)
 		return
 	}
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		HandleError(w, err)
-		return
-	}
 
 	err = db.DeleteActor(pgdb, intActorID)
 	if err != nil {
