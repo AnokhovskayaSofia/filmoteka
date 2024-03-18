@@ -87,12 +87,6 @@ func createActor(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	req := &api_models.CreateActorRequest{}
-
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		HandleError(w, err)
-		return
-	}
 	err = json.NewDecoder(r.Body).Decode(req)
 	err = Validate.Struct(req)
 
