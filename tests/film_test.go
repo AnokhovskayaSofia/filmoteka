@@ -14,10 +14,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestGetActors(t *testing.T) {
+func TestGetFilms(t *testing.T) {
 
 	method := "GET"
-	url := "/actors"
+	url := "/films"
 
 	testCases := []struct {
 		name     string
@@ -54,28 +54,31 @@ func TestGetActors(t *testing.T) {
 
 			assert.Equal(t, tc.code, writer.Code)
 			if writer.Code == 200 {
-				actors := api_models.ActorsResponse{}
-				err := json.Unmarshal(writer.Body.Bytes(), &actors)
+				films := api_models.FilmsResponse{}
+				err := json.Unmarshal(writer.Body.Bytes(), &films)
 				if err != nil {
-					assert.Fail(t, "Cant parse response to api_models.ActorsResponse")
+					assert.Fail(t, "Cant parse response to api_models.FilmsResponse")
 				}
 			}
 		})
 	}
 }
 
-func TestCreateActors(t *testing.T) {
+func TestCreateFilms(t *testing.T) {
 
 	method := "POST"
-	url := "/actors"
+	url := "/films"
+	// "2001-12-12" := time.Parse("2001-12-12", "2001-12-12")
 
 	testCases := []struct {
 		name        string
 		username    string
 		password    string
-		actor_name  string
-		actor_sex   string
-		actor_birth string
+		film_name   string
+		film_desc   string
+		film_date   string
+		film_rate   int
+		film_actors []int
 		code        int
 		error       string
 	}{
@@ -93,31 +96,62 @@ func TestCreateActors(t *testing.T) {
 			name:        "Admin Auth Valid Data",
 			username:    "admin",
 			password:    "admin",
-			actor_name:  "Actor1",
-			actor_sex:   "male",
-			actor_birth: "2001-01-01",
+			film_name:   "Film3",
+			film_desc:   "Film desc3",
+			film_date:   "2000-10-10",
+			film_rate:   4,
+			film_actors: []int{1, 2},
 			code:        200,
 		},
 		{
-			name:        "Admin Auth Invalide Sex",
+			name:        "Admin Auth Invalide Name",
 			username:    "admin",
 			password:    "admin",
-			actor_name:  "Actor1",
-			actor_sex:   "other",
-			actor_birth: "2001-01-01",
+			film_name:   "",
+			film_desc:   "Film desc",
+			film_date:   "2001-12-12",
+			film_rate:   4,
+			film_actors: []int{1, 2},
+			code:        400,
+		},
+		{
+			name:        "Admin Auth Invalide Rate",
+			username:    "admin",
+			password:    "admin",
+			film_name:   "Film",
+			film_desc:   "Film desc",
+			film_date:   "2001-12-12",
+			film_rate:   11,
+			film_actors: []int{1, 2},
+			code:        400,
+		},
+		{
+			name:        "Admin Auth Invalide Missing Data",
+			username:    "admin",
+			password:    "admin",
+			film_name:   "Film",
+			film_desc:   "Film desc",
+			film_rate:   1,
+			film_actors: []int{1, 2},
 			code:        400,
 		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			var body []byte
-			if tc.actor_name != "" {
-				body, _ = json.Marshal(map[string]string{
-					"name":  tc.actor_name,
-					"sex":   tc.actor_sex,
-					"birth": tc.actor_birth,
+			if tc.film_name != "" {
+				body, _ = json.Marshal(api_models.CreateFilmRequest{
+
+					Name:        tc.film_name,
+					Description: tc.film_desc,
+					Date:        tc.film_date,
+					Rate:        tc.film_rate,
+					Actors:      tc.film_actors,
 				})
+				slog.Debug(string(body))
 			}
+
+			slog.Debug(string(body))
 			request, _ := http.NewRequest(method, url, bytes.NewBuffer(body))
 			if tc.username != "" && tc.password != "" {
 				request.SetBasicAuth(tc.username, tc.password)
@@ -127,21 +161,22 @@ func TestCreateActors(t *testing.T) {
 			assert.Equal(t, tc.code, writer.Code)
 
 			if writer.Code == 200 {
-				resp := api_models.ActorResponse{}
+				resp := api_models.FilmResponse{}
 				json.Unmarshal(writer.Body.Bytes(), &resp)
 				exists := resp.Success
-				actor := resp.Actor
+				film := resp.Film
 
 				assert.Equal(t, true, exists)
-				assert.Equal(t, actor.Name, tc.actor_name)
+				assert.Equal(t, film.Name, tc.film_name)
 			}
 		})
 	}
 }
 
-func TestUpdateActors(t *testing.T) {
+func TestUpdateFilms(t *testing.T) {
 
 	method := "PUT"
+	url := "/films"
 
 	body, _ := json.Marshal(map[string]string{
 		"name":  "TempName",
@@ -149,7 +184,7 @@ func TestUpdateActors(t *testing.T) {
 		"birth": "2001-01-01",
 	})
 
-	request, _ := http.NewRequest("POST", "/actors", bytes.NewBuffer(body))
+	request, _ := http.NewRequest("POST", url, bytes.NewBuffer(body))
 	request.SetBasicAuth("admin", "admin")
 
 	writer := httptest.NewRecorder()
@@ -159,91 +194,90 @@ func TestUpdateActors(t *testing.T) {
 		name        string
 		username    string
 		password    string
-		actor_id    string
-		actor_name  string
-		actor_sex   string
-		actor_birth string
+		film_id     string
+		film_name   string
+		film_desc   string
+		film_date   string
+		film_rate   int
+		film_actors []int
 		code        int
 		error       string
 	}{
 		{
-			name: "No Auth No ID",
-			code: 405,
-		},
-		{
-			name:     "Client Auth No ID",
-			username: "client",
-			password: "client",
-			code:     405,
-		},
-		{
-			name:     "No Auth",
-			actor_id: "1",
-			code:     401,
+			name:    "No Auth",
+			film_id: "1",
+			code:    401,
 		},
 		{
 			name:     "Client Auth",
-			actor_id: "1",
 			username: "client",
 			password: "client",
+			film_id:  "1",
 			code:     401,
-		},
-		{
-			name:        "Admin Auth Valid Data No ID",
-			username:    "admin",
-			password:    "admin",
-			actor_name:  "NewActor1",
-			actor_sex:   "male",
-			actor_birth: "2001-01-01",
-			code:        405,
 		},
 		{
 			name:        "Admin Auth Valid Data",
 			username:    "admin",
 			password:    "admin",
-			actor_id:    "1",
-			actor_name:  "NewActor1",
-			actor_sex:   "male",
-			actor_birth: "2001-01-01",
+			film_id:     "1",
+			film_name:   "Film",
+			film_desc:   "Film desc",
+			film_date:   "2001-12-12",
+			film_rate:   4,
+			film_actors: []int{1, 2},
 			code:        200,
 		},
 		{
-			name:       "Admin Auth Valid Data Not Full",
-			username:   "admin",
-			password:   "admin",
-			actor_id:   "1",
-			actor_name: "NewActor 1",
-			code:       200,
-		},
-		{
-			name:        "Admin Auth Invalide Sex",
+			name:        "Admin Auth Invalide Rate",
 			username:    "admin",
 			password:    "admin",
-			actor_id:    "1",
-			actor_name:  "Actor1",
-			actor_sex:   "other",
-			actor_birth: "2001-01-01",
+			film_id:     "1",
+			film_name:   "Film",
+			film_desc:   "Film desc",
+			film_date:   "2001-12-12",
+			film_rate:   11,
+			film_actors: []int{1, 2},
 			code:        400,
+		},
+		{
+			name:        "Admin Auth Missing Data",
+			username:    "admin",
+			password:    "admin",
+			film_id:     "1",
+			film_name:   "Film",
+			film_desc:   "Film desc",
+			film_rate:   0,
+			film_actors: []int{1, 2},
+			code:        200,
+		},
+		{
+			name:        "Admin Auth Missing Data No Id",
+			username:    "admin",
+			password:    "admin",
+			film_name:   "Film",
+			film_desc:   "Film desc",
+			film_rate:   0,
+			film_actors: []int{1, 2},
+			code:        405,
 		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			var body []byte
-			url := "/actors"
-			if tc.actor_name != "" {
-				if tc.actor_sex != "" {
-					body, _ = json.Marshal(map[string]string{
-						"name": tc.actor_name,
-						"sex":  tc.actor_sex,
-					})
-				} else {
-					body, _ = json.Marshal(map[string]string{
-						"name": tc.actor_name,
-					})
-				}
+			url := "/films"
+			if tc.film_name != "" {
+
+				body, _ = json.Marshal(api_models.UpdateFilmRequest{
+					Name:        tc.film_name,
+					Description: tc.film_desc,
+					Date:        tc.film_date,
+					Rate:        tc.film_rate,
+					Actors:      tc.film_actors,
+				})
+
 			}
-			if tc.actor_id != "" {
-				url = url + "/" + tc.actor_id
+			if tc.film_id != "" {
+				url = url + "/" + tc.film_id
 			}
 			slog.Debug(url)
 			request, _ := http.NewRequest(method, url, bytes.NewBuffer(body))
@@ -256,33 +290,32 @@ func TestUpdateActors(t *testing.T) {
 			assert.Equal(t, tc.code, writer.Code)
 
 			if writer.Code == 200 {
-				resp := api_models.ActorResponse{}
-				json.Unmarshal(writer.Body.Bytes(), &resp)
+				resp := api_models.FilmResponse{}
+				err := json.Unmarshal(writer.Body.Bytes(), &resp)
+				if err != nil {
+					panic(err)
+				}
 				exists := resp.Success
-				actor := resp.Actor
-
+				film := resp.Film
 				assert.Equal(t, true, exists)
-				assert.Equal(t, actor.Name, tc.actor_name)
+				assert.Equal(t, film.Name, tc.film_name)
 			}
 		})
 	}
 }
 
-func TestDeleteActors(t *testing.T) {
+func TestDeleteFilms(t *testing.T) {
 
 	method := "DELETE"
 
 	testCases := []struct {
-		name        string
-		username    string
-		password    string
-		actor_id    string
-		wrong_id    string
-		actor_name  string
-		actor_sex   string
-		actor_birth string
-		code        int
-		error       string
+		name     string
+		username string
+		password string
+		film_id  string
+		wrong_id string
+		code     int
+		error    string
 	}{
 		{
 			name: "No Auth No ID",
@@ -295,13 +328,13 @@ func TestDeleteActors(t *testing.T) {
 			code:     405,
 		},
 		{
-			name:     "No Auth",
-			actor_id: "1",
-			code:     401,
+			name:    "No Auth",
+			film_id: "1",
+			code:    401,
 		},
 		{
 			name:     "Client Auth",
-			actor_id: "1",
+			film_id:  "1",
 			username: "client",
 			password: "client",
 			code:     401,
@@ -316,7 +349,7 @@ func TestDeleteActors(t *testing.T) {
 			name:     "Admin Auth Valid Data",
 			username: "admin",
 			password: "admin",
-			actor_id: "1",
+			film_id:  "1",
 			code:     200,
 		},
 		{
@@ -329,39 +362,39 @@ func TestDeleteActors(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			body_, _ := json.Marshal(map[string]string{
-				"name":  "TempName",
-				"sex":   "male",
-				"birth": "2001-01-01",
-			})
-			// Добавление пользователя в базу
-			request, _ := http.NewRequest("POST", "/actors", bytes.NewBuffer(body_))
+			// body_, _ := json.Marshal(map[string]string{
+			// 	"name":  "TempName",
+			// 	"sex":   "male",
+			// 	"birth": "2001-01-01",
+			// })
+			// // Добавление пользователя в базу
+			// request, _ := http.NewRequest("POST", "/films", bytes.NewBuffer(body_))
+			// request.SetBasicAuth("admin", "admin")
+			// writer := httptest.NewRecorder()
+			// router.ServeHTTP(writer, request)
+
+			// Получение всех пользователей, чтобы посчитать сколько было до удаления
+			request, _ := http.NewRequest("GET", "/films", bytes.NewBufferString(""))
 			request.SetBasicAuth("admin", "admin")
 			writer := httptest.NewRecorder()
 			router.ServeHTTP(writer, request)
 
-			// Получение всех пользователей, чтобы посчитать сколько было до удаления
-			request, _ = http.NewRequest("GET", "/actors", bytes.NewBufferString(""))
-			request.SetBasicAuth("admin", "admin")
-			writer = httptest.NewRecorder()
-			router.ServeHTTP(writer, request)
-
-			actors := api_models.ActorsResponse{}
-			err := json.Unmarshal(writer.Body.Bytes(), &actors)
+			films := api_models.FilmsResponse{}
+			err := json.Unmarshal(writer.Body.Bytes(), &films)
 			if err != nil {
 				panic(err)
 			}
-			cap_actors_init := len(actors.Actors)
-			if tc.actor_id != "" {
-				tc.actor_id = strconv.FormatInt(actors.Actors[0].ID, 10)
+			cap_films_init := len(films.Films)
+			if tc.film_id != "" {
+				tc.film_id = strconv.FormatInt(int64(films.Films[0].ID), 10)
 			}
-			slog.Debug(strconv.Itoa(cap_actors_init))
+			slog.Debug(strconv.Itoa(cap_films_init))
 
 			var body []byte
-			url := "/actors"
+			url := "/films"
 
-			if tc.actor_id != "" {
-				url = url + "/" + tc.actor_id
+			if tc.film_id != "" {
+				url = url + "/" + tc.film_id
 			}
 			if tc.wrong_id != "" {
 				url = url + "/" + tc.wrong_id
@@ -376,18 +409,18 @@ func TestDeleteActors(t *testing.T) {
 			assert.Equal(t, tc.code, writer.Code)
 
 			if writer.Code == 200 {
-				request, _ = http.NewRequest("GET", "/actors", bytes.NewBufferString(""))
+				request, _ = http.NewRequest("GET", "/films", bytes.NewBufferString(""))
 				request.SetBasicAuth("admin", "admin")
 				writer = httptest.NewRecorder()
 				router.ServeHTTP(writer, request)
 
-				actors := api_models.ActorsResponse{}
-				err := json.Unmarshal(writer.Body.Bytes(), &actors)
+				films := api_models.FilmsResponse{}
+				err := json.Unmarshal(writer.Body.Bytes(), &films)
 				if err != nil {
 					panic(err)
 				}
-				cap_actor := len(actors.Actors)
-				assert.Equal(t, cap_actor, cap_actors_init-1)
+				cap_films := len(films.Films)
+				assert.Equal(t, cap_films, cap_films_init-1)
 			}
 		})
 	}
