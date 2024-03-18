@@ -22,6 +22,6 @@ type CreateActorRequest struct {
 
 type UpdateActorRequest struct {
 	Name  string `json:"name,omitempty"`
-	Sex   string `json:"sex,omitempty" validate:"oneof=male female"`
+	Sex   string `json:"sex,omitempty" validate:"omitempty,oneof=male female"`
 	Birth string `json:"birth,omitempty"`
 }

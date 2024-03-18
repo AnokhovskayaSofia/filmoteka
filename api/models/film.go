@@ -25,9 +25,9 @@ type CreateFilmRequest struct {
 }
 
 type UpdateFilmRequest struct {
-	Name        string `json:"name,omitempty" validate:"optional,min=1,max=150"`
-	Description string `json:"description,omitempty" validate:"optional,max=1000"`
+	Name        string `json:"name,omitempty" validate:"omitempty,min=1,max=150"`
+	Description string `json:"description,omitempty" validate:"omitempty,max=1000"`
 	Date        string `json:"date,omitempty"`
-	Rate        int    `json:"rate,omitempty" validate:"optional,gte=0,lte=10"`
+	Rate        int    `json:"rate,omitempty" validate:"omitempty,gte=0,lte=10"`
 	Actors      []int  `json:"actors,omitempty"`
 }

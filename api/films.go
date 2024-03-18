@@ -5,6 +5,7 @@ import (
 	"errors"
 	api_models "filmoteka/api/models"
 	"filmoteka/db"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -123,6 +124,7 @@ func createFilm(w http.ResponseWriter, r *http.Request) {
 
 	datetime, err := time.Parse("2006-01-02", req.Date)
 	if err != nil {
+		slog.Debug(req.Date)
 		w.WriteHeader(http.StatusBadRequest)
 		HandleError(w, err)
 		return
@@ -209,6 +211,7 @@ func updateFilm(w http.ResponseWriter, r *http.Request) {
 	if req.Date != "" {
 		datetime, err = time.Parse("2006-01-02", req.Date)
 		if err != nil {
+			slog.Debug(req.Date)
 			w.WriteHeader(http.StatusBadRequest)
 			HandleError(w, err)
 			return
@@ -228,7 +231,13 @@ func updateFilm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = json.NewEncoder(w).Encode(film)
+	res := &api_models.FilmResponse{
+		Success: true,
+		Error:   "",
+		Film:    film,
+	}
+
+	err = json.NewEncoder(w).Encode(res)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		return

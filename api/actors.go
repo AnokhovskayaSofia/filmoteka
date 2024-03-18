@@ -26,6 +26,7 @@ import (
 // @Failure 401 {object}  ErrorResponse
 // @Failure 400 {object} ErrorResponse
 func getActors(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
 	_, err := checkBasicAuth(r)
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
@@ -53,14 +54,14 @@ func getActors(w http.ResponseWriter, r *http.Request) {
 		Error:   "",
 		Actors:  actors,
 	}
-
+	w.WriteHeader(http.StatusOK)
 	err = json.NewEncoder(w).Encode(res)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		HandleError(w, err)
 		return
 	}
-	w.WriteHeader(http.StatusOK)
+
 }
 
 // createActor godoc
@@ -188,11 +189,14 @@ func updateActor(w http.ResponseWriter, r *http.Request) {
 		HandleError(w, err)
 		return
 	}
-	datetime, err := time.Parse("2006-01-02", req.Birth)
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		HandleError(w, err)
-		return
+	var datetime time.Time
+	if req.Birth != "" {
+		datetime, err = time.Parse("2006-01-02", req.Birth)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			HandleError(w, err)
+			return
+		}
 	}
 	actor, err := db.UpdateActor(pgdb, &db.Actor{
 		ID:    intActorID,
