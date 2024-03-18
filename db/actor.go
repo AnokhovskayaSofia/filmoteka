@@ -1,7 +1,6 @@
 package db
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/go-pg/pg/v10"
@@ -41,11 +40,10 @@ func CreateActor(db *pg.DB, req *Actor) (*Actor, error) {
 }
 
 func UpdateActor(db *pg.DB, req *Actor) (*Actor, error) {
-	fmt.Println(req)
-	res, err := db.Model(req).
+
+	_, err := db.Model(req).
 		Where("actor.id = ?", req.ID).
 		UpdateNotZero()
-	fmt.Println(res, err)
 	if err != nil {
 		return nil, err
 	}

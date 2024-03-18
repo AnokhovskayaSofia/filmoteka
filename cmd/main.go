@@ -18,7 +18,7 @@ import (
 //	@contact.url	http://www.swagger.io/support
 //	@contact.email	support@swagger.io
 
-// @host		cfg.HTTPServer.Address
+// @host		host:port
 // @BasePath /
 
 // @securityDefinitions.basic BasicAuth

@@ -24,9 +24,8 @@ func StartAPI(pgdb *pg.DB, cfg *config.Config) *chi.Mux {
 	r := chi.NewRouter()
 
 	r.Use(middleware.Logger, middleware.RequestID, middleware.Recoverer, middleware.WithValue("DB", pgdb))
-	// r.Mount("/swagger", httpSwagger.WrapHandler)
 	r.Get("/swagger/*", httpSwagger.Handler(
-		httpSwagger.URL(cfg.HTTPServer.Address+"/swagger/doc.json"), //The url pointing to API definition
+		httpSwagger.URL(cfg.HTTPServer.Address+"/swagger/doc.json"),
 	))
 
 	r.Route("/films", func(r chi.Router) {

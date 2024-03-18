@@ -28,7 +28,6 @@ type PostgresDB struct {
 }
 
 func CnfLoad() *Config {
-	// Получаем путь до конфиг-файла из env-переменной CONFIG_PATH
 	configPath := os.Getenv("CONFIG_PATH")
 	if configPath == "" {
 		slog.Error("CONFIG_PATH environment variable is not set")
@@ -41,7 +40,6 @@ func CnfLoad() *Config {
 
 	var cfg Config
 
-	// Читаем конфиг-файл и заполняем нашу структуру
 	err := cleanenv.ReadConfig(configPath, &cfg)
 	if err != nil {
 		slog.Error("error reading config file: %s", err)

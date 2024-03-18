@@ -1,12 +1,12 @@
-env: "local" # Окружение - local, dev или prod
+env: "local" # Окружение - local, test, dev или prod
 
 http_server: # конфигурация http-сервера
-  address: "localhost:8085"
-  timeout: 4s
+  address: "localhost:8085" # адрес сервера для развертывания
+  timeout: 4s # timeout для запроса
   idle_timeout: 30s
 
-postgres:
-  addr: "localhost:5432"
-  user: "postgres"
-  password: "postgres"
-  database: "db"
+postgres: # конфигурация базы данных postgres
+  addr: "localhost:5432" # адрес базы данных
+  user: "postgres" # имя пользователя
+  password: "postgres" # пароль
+  database: "db" # имя созданной базы данных
