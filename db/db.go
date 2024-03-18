@@ -3,6 +3,7 @@ package db
 import (
 	"filmoteka/config"
 	"log/slog"
+	"time"
 
 	"github.com/go-pg/pg/v10"
 	"github.com/go-pg/pg/v10/orm"
@@ -28,7 +29,10 @@ func StartDB(cnf *config.Config) (*pg.DB, error) {
 	}
 
 	db := pg.Connect(opts)
-	err = createManyToManyTables(db)
+	err = createManyToManyTables(db, cnf.Env)
+	if cnf.Env == "test" {
+		initUsers(db)
+	}
 
 	// data_time, _ := time.Parse("2001-02-02", "2001-02-02")
 	// values := []interface{}{
@@ -48,16 +52,38 @@ func StartDB(cnf *config.Config) (*pg.DB, error) {
 	return db, err
 }
 
-func createManyToManyTables(db *pg.DB) error {
+func initUsers(db *pg.DB) {
+	data_time, _ := time.Parse("2001-02-02", "2001-02-02")
+	values := []interface{}{
+		&User{Username: "client", Password: "client", Role: "client"},
+		&User{Username: "admin", Password: "admin", Role: "admin"},
+		&Actor{Name: "name1", Sex: "female", Birth: data_time},
+		&Actor{Name: "name2", Sex: "male", Birth: data_time},
+		&Film{Name: "Film1", Description: "Desk film1", Date: data_time, Rate: 5},
+		&Film{Name: "Film2", Description: "Desk film2", Date: data_time, Rate: 7},
+	}
+	for _, v := range values {
+		_, err := db.Model(v).Insert()
+		if err != nil {
+			panic(err)
+		}
+	}
+}
+
+func createManyToManyTables(db *pg.DB, env string) error {
 	models := []interface{}{
 		(*User)(nil),
 		(*Film)(nil),
 		(*Actor)(nil),
 		(*FilmToActor)(nil),
 	}
+	temp_val := false
+	if env == "test" {
+		temp_val = true
+	}
 	for _, model := range models {
 		err := db.Model(model).CreateTable(&orm.CreateTableOptions{
-			Temp:        false,
+			Temp:        temp_val,
 			IfNotExists: true,
 		})
 		if err != nil {

@@ -11,7 +11,7 @@ type Actor struct {
 	ID    int64     `json:"id"`
 	Name  string    `json:"name"`
 	Sex   string    `json:"sex" validate:"oneof=male female"`
-	Birth time.Time `json:"birthday" validate:"datetime"`
+	Birth time.Time `json:"birthday"`
 	Films []Film    `json:"films" pg:"many2many:film_to_actors"`
 }
 
